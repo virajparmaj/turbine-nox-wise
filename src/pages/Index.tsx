@@ -1,235 +1,256 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ParameterInput } from "@/components/ParameterInput";
-import { ResultsPanel } from "@/components/ResultsPanel";
-import { SummaryPanel } from "@/components/SummaryPanel";
-import { RotateCcw, Gauge } from "lucide-react";
+import { InputField } from "@/components/InputField";
+import { PredictedNoxCard } from "@/components/PredictedNoxCard";
+import { RecommendationsCard } from "@/components/RecommendationsCard";
+import { WhatChangedCard } from "@/components/WhatChangedCard";
+import { RotateCcw, Gauge, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { parseCSV, StatsMap } from "@/utils/csvParser";
+import { evaluateRecommendations } from "@/utils/recommendations";
 
-// Default baseline values
-const BASELINE_VALUES = {
-  AT: 20,
-  AP: 1013,
-  AH: 50,
-  AFDP: 0.02,
-  CDP: 15,
-  TIT: 1200,
-  TAT: 550,
-  TEY: 150,
-  GTEP: 1.5,
+const tooltips = {
+  AT: "Ambient Temperature - Temperature of air entering the turbine",
+  AP: "Ambient Pressure - Atmospheric pressure at turbine location",
+  AH: "Ambient Humidity - Relative humidity of intake air",
+  AFDP: "Air Filter Differential Pressure - Pressure drop across air filter",
+  CDP: "Compressor Discharge Pressure - Pressure after compression stage",
+  GTEP: "Gas Turbine Exhaust Pressure - Pressure of exhaust gases",
+  TIT: "Turbine Inlet Temperature - Temperature of gas entering turbine",
+  TAT: "Turbine Exhaust Temperature - Temperature of exhaust gases",
+  TEY: "Turbine Energy Yield - Power output of the turbine"
 };
 
 const Index = () => {
   const { toast } = useToast();
-  const [parameters, setParameters] = useState(BASELINE_VALUES);
-  const [nox, setNox] = useState(0);
-  const [baselineNox, setBaselineNox] = useState(0);
+  const [stats, setStats] = useState<StatsMap | null>(null);
+  const [baseline, setBaseline] = useState<Record<string, number>>({});
+  const [parameters, setParameters] = useState<Record<string, number>>({});
+  const [nox, setNox] = useState<number | null>(null);
+  const [delta, setDelta] = useState<number | null>(null);
+  const [recommendations, setRecommendations] = useState<{ messages: string[]; severity: 'green' | 'yellow' | 'orange' | 'red' }>({
+    messages: ["Click Calculate to see recommendations"],
+    severity: 'green'
+  });
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // Calculate NOx using the mock formula
-  const calculateNox = (params: typeof parameters) => {
-    return (
-      0.5 * params.TIT -
-      0.3 * params.AT +
-      4 * params.AFDP * 100 + // Scale AFDP for visibility
-      0.1 * params.TEY -
-      0.2 * params.TAT
-    );
-  };
-
-  // Generate recommendation based on parameters
-  const getRecommendation = () => {
-    const { AFDP, AT, TEY, AH, TAT } = parameters;
-    
-    if (AFDP > 0.03) {
-      return "Air filter likely restricted — clean or replace filters.";
-    }
-    if (AT < 10) {
-      return "Cold intake air increasing NOx — adjust firing or use inlet heating.";
-    }
-    if (TEY > 160) {
-      return "Operating at peak load — consider temporary load reduction.";
-    }
-    if (AH < 30) {
-      return "Dry air — expect higher NOx; monitor closely.";
-    }
-    if (TAT < 520) {
-      return "Check exhaust temperature balance — possible combustion inefficiency.";
-    }
-    return "Operating within normal limits.";
-  };
-
-  // Identify primary driver
-  const getPrimaryDriver = () => {
-    const { AFDP, AT, TEY, AH, TAT } = parameters;
-    
-    if (AFDP > 0.03) return "air filter differential pressure";
-    if (AT < 10) return "low ambient temperature";
-    if (TEY > 160) return "high energy yield (peak load)";
-    if (AH < 30) return "low ambient humidity";
-    if (TAT < 520) return "low turbine exhaust temperature";
-    return "standard operating parameters";
-  };
-
-  // Calculate on mount and when parameters change
   useEffect(() => {
-    setIsCalculating(true);
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      const calculatedNox = calculateNox(parameters);
-      setNox(calculatedNox);
-      setIsCalculating(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [parameters]);
-
-  // Set baseline on mount
-  useEffect(() => {
-    setBaselineNox(calculateNox(BASELINE_VALUES));
+    parseCSV('/TurbineGroup2.csv').then(csvStats => {
+      setStats(csvStats);
+      const medians: Record<string, number> = {};
+      Object.keys(csvStats).forEach(key => {
+        if (key !== 'CO' && key !== 'NOX') {
+          medians[key] = csvStats[key as keyof StatsMap].median;
+        }
+      });
+      setBaseline(medians);
+      setParameters(medians);
+    });
   }, []);
 
-  const handleReset = () => {
-    setParameters(BASELINE_VALUES);
+  const handleCalculate = () => {
+    setIsCalculating(true);
+    
+    // Mock NOx calculation
+    const noxPred = 0.5 * parameters.TIT - 0.3 * parameters.AT + 4.0 * parameters.AFDP + 0.1 * parameters.TEY - 0.2 * parameters.TAT;
+    const baselineNox = 0.5 * baseline.TIT - 0.3 * baseline.AT + 4.0 * baseline.AFDP + 0.1 * baseline.TEY - 0.2 * baseline.TAT;
+    
+    setNox(noxPred);
+    setDelta(noxPred - baselineNox);
+    setRecommendations(evaluateRecommendations(parameters));
+    setIsCalculating(false);
+    
     toast({
-      title: "Reset to baseline",
-      description: "All parameters have been reset to default values.",
+      title: "Calculation complete",
+      description: `NOx emissions: ${noxPred.toFixed(1)} ppm`
     });
   };
 
-  const updateParameter = (key: keyof typeof parameters, value: number) => {
-    setParameters((prev) => ({ ...prev, [key]: value }));
+  const handleReset = () => {
+    setParameters({ ...baseline });
+    setNox(null);
+    setDelta(null);
+    setRecommendations({ messages: ["Click Calculate to see recommendations"], severity: 'green' });
+    toast({
+      title: "Reset to baseline",
+      description: "All parameters reset to median values from dataset"
+    });
   };
+
+  const updateParameter = (key: string, value: number) => {
+    setParameters(prev => ({ ...prev, [key]: value }));
+  };
+
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Gauge className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+          <p className="text-muted-foreground">Loading turbine data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card shadow-sm">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <Gauge className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold text-primary">Turbine NOx Advisor</h1>
-              <p className="text-sm text-muted-foreground">
-                Real-time nitrogen oxide emission prediction and optimization
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Gauge className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold text-primary">Turbine NOx Advisor</h1>
+                <p className="text-sm text-muted-foreground">
+                  Predict and optimize nitrogen oxide emissions
+                </p>
+              </div>
             </div>
+            <Button variant="outline" onClick={handleReset}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset All
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Input Panel - Spans 2 columns on large screens */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left Column - Inputs */}
+          <div className="space-y-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-2xl">Operating Parameters</CardTitle>
-                <Button variant="outline" size="sm" onClick={handleReset}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
+              <CardHeader>
+                <CardTitle>Ambient Conditions</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <ParameterInput
-                    label="Ambient Temperature"
-                    value={parameters.AT}
-                    onChange={(v) => updateParameter("AT", v)}
-                    unit="°C"
-                    showAdjustments
-                    min={-20}
-                    max={50}
-                  />
-                  <ParameterInput
-                    label="Ambient Pressure"
-                    value={parameters.AP}
-                    onChange={(v) => updateParameter("AP", v)}
-                    unit="mbar"
-                    min={900}
-                    max={1100}
-                  />
-                  <ParameterInput
-                    label="Ambient Humidity"
-                    value={parameters.AH}
-                    onChange={(v) => updateParameter("AH", v)}
-                    unit="%"
-                    min={0}
-                    max={100}
-                  />
-                  <ParameterInput
-                    label="Air Filter Diff. Pressure"
-                    value={parameters.AFDP}
-                    onChange={(v) => updateParameter("AFDP", v)}
-                    unit="bar"
-                    showAdjustments
-                    min={0}
-                    max={0.1}
-                  />
-                  <ParameterInput
-                    label="Compressor Discharge Pressure"
-                    value={parameters.CDP}
-                    onChange={(v) => updateParameter("CDP", v)}
-                    unit="bar"
-                    min={10}
-                    max={25}
-                  />
-                  <ParameterInput
-                    label="Turbine Inlet Temperature"
-                    value={parameters.TIT}
-                    onChange={(v) => updateParameter("TIT", v)}
-                    unit="°C"
-                    showAdjustments
-                    min={1000}
-                    max={1500}
-                  />
-                  <ParameterInput
-                    label="Turbine Exhaust Temperature"
-                    value={parameters.TAT}
-                    onChange={(v) => updateParameter("TAT", v)}
-                    unit="°C"
-                    showAdjustments
-                    min={400}
-                    max={650}
-                  />
-                  <ParameterInput
-                    label="Turbine Energy Yield"
-                    value={parameters.TEY}
-                    onChange={(v) => updateParameter("TEY", v)}
-                    unit="MW"
-                    showAdjustments
-                    min={100}
-                    max={200}
-                  />
-                  <ParameterInput
-                    label="Gas Turbine Exhaust Pressure"
-                    value={parameters.GTEP}
-                    onChange={(v) => updateParameter("GTEP", v)}
-                    unit="bar"
-                    min={1}
-                    max={3}
-                  />
-                </div>
+              <CardContent className="space-y-4">
+                <InputField
+                  label="AT"
+                  value={parameters.AT}
+                  onChange={(v) => updateParameter("AT", v)}
+                  unit="°C"
+                  tooltip={tooltips.AT}
+                  min={stats.AT.p10}
+                  max={stats.AT.p90}
+                />
+                <InputField
+                  label="AP"
+                  value={parameters.AP}
+                  onChange={(v) => updateParameter("AP", v)}
+                  unit="mbar"
+                  tooltip={tooltips.AP}
+                  min={stats.AP.p10}
+                  max={stats.AP.p90}
+                />
+                <InputField
+                  label="AH"
+                  value={parameters.AH}
+                  onChange={(v) => updateParameter("AH", v)}
+                  unit="%"
+                  tooltip={tooltips.AH}
+                  min={stats.AH.p10}
+                  max={stats.AH.p90}
+                />
               </CardContent>
             </Card>
 
-            {/* Summary Panel */}
-            <SummaryPanel
-              nox={nox}
-              primaryDriver={getPrimaryDriver()}
-              recommendation={getRecommendation()}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Pressures</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <InputField
+                  label="AFDP"
+                  value={parameters.AFDP}
+                  onChange={(v) => updateParameter("AFDP", v)}
+                  unit="bar"
+                  tooltip={tooltips.AFDP}
+                  min={stats.AFDP.p10}
+                  max={stats.AFDP.p90}
+                />
+                <InputField
+                  label="CDP"
+                  value={parameters.CDP}
+                  onChange={(v) => updateParameter("CDP", v)}
+                  unit="bar"
+                  tooltip={tooltips.CDP}
+                  min={stats.CDP.p10}
+                  max={stats.CDP.p90}
+                />
+                <InputField
+                  label="GTEP"
+                  value={parameters.GTEP}
+                  onChange={(v) => updateParameter("GTEP", v)}
+                  unit="bar"
+                  tooltip={tooltips.GTEP}
+                  min={stats.GTEP.p10}
+                  max={stats.GTEP.p90}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Combustion</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <InputField
+                  label="TIT"
+                  value={parameters.TIT}
+                  onChange={(v) => updateParameter("TIT", v)}
+                  unit="°C"
+                  tooltip={tooltips.TIT}
+                  min={stats.TIT.p10}
+                  max={stats.TIT.p90}
+                />
+                <InputField
+                  label="TAT"
+                  value={parameters.TAT}
+                  onChange={(v) => updateParameter("TAT", v)}
+                  unit="°C"
+                  tooltip={tooltips.TAT}
+                  min={stats.TAT.p10}
+                  max={stats.TAT.p90}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Output</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InputField
+                  label="TEY"
+                  value={parameters.TEY}
+                  onChange={(v) => updateParameter("TEY", v)}
+                  unit="MW"
+                  tooltip={tooltips.TEY}
+                  min={stats.TEY.p10}
+                  max={stats.TEY.p90}
+                />
+              </CardContent>
+            </Card>
+
+            <Button 
+              size="lg" 
+              className="w-full" 
+              onClick={handleCalculate}
+              disabled={isCalculating}
+            >
+              <Calculator className="h-5 w-5 mr-2" />
+              Calculate NOx Emissions
+            </Button>
           </div>
 
-          {/* Results Panel - Spans 1 column on large screens */}
-          <div className="lg:col-span-1">
-            <ResultsPanel
-              nox={nox}
-              baselineNox={baselineNox}
-              recommendation={getRecommendation()}
+          {/* Right Column - Results */}
+          <div className="space-y-6">
+            <PredictedNoxCard nox={nox} delta={delta} />
+            <RecommendationsCard 
+              messages={recommendations.messages} 
+              severity={recommendations.severity} 
             />
+            <WhatChangedCard baseline={baseline} current={parameters} />
           </div>
         </div>
       </main>
