@@ -7,33 +7,33 @@ export interface Rule {
 export const rules: Rule[] = [
   {
     condition: (i) => i.AFDP > 1.0,
-    message: "Air filter likely restricted — clean or replace filters.",
+    message: "Filters likely clogged — schedule cleaning.",
     severity: 'red'
   },
   {
     condition: (i) => i.AT < 10,
-    message: "Cold intake air raising NOx — use inlet heating or soften firing / reduce load.",
+    message: "Cold air may increase NOx — enable inlet heating.",
+    severity: 'orange'
+  },
+  {
+    condition: (i) => i.TIT > 1100,
+    message: "Combustion too hot — check firing or dilution.",
     severity: 'orange'
   },
   {
     condition: (i) => i.TEY > 160,
-    message: "High load increasing NOx — consider temporary load reduction.",
+    message: "High load increasing NOx — consider load reduction.",
     severity: 'orange'
   },
   {
     condition: (i) => i.AH < 30,
-    message: "Dry air — expect higher NOx; monitor and adjust as needed.",
+    message: "Dry air may raise NOx — monitor humidity.",
     severity: 'yellow'
   },
   {
-    condition: (i) => i.TIT > 1100,
-    message: "Combustion very hot — check firing or increase dilution.",
+    condition: (i) => i.TAT > 550,
+    message: "High exhaust temperature — retune airflow balance.",
     severity: 'orange'
-  },
-  {
-    condition: (i) => i.TAT < 520,
-    message: "Low exhaust temperature — check mixing/exhaust balance.",
-    severity: 'yellow'
   }
 ];
 
@@ -54,7 +54,7 @@ export function evaluateRecommendations(inputs: Record<string, number>) {
   );
   
   return {
-    messages: triggered.slice(0, 3).map(r => r.message),
+    messages: triggered.map(r => r.message),
     severity: maxSeverity
   };
 }
