@@ -52,10 +52,16 @@ const Index = () => {
   const handleCalculate = () => {
     setIsCalculating(true);
     
-    // Mock NOx calculation
+    // Clear previous results to ensure fresh calculation
+    setNox(null);
+    setDelta(null);
+    setRecommendations({ messages: [], severity: 'green' });
+    
+    // Recalculate NOx with current parameters
     const noxPred = 0.5 * parameters.TIT - 0.3 * parameters.AT + 4.0 * parameters.AFDP + 0.1 * parameters.TEY - 0.2 * parameters.TAT;
     const baselineNox = 0.5 * baseline.TIT - 0.3 * baseline.AT + 4.0 * baseline.AFDP + 0.1 * baseline.TEY - 0.2 * baseline.TAT;
     
+    // Set fresh results
     setNox(noxPred);
     setDelta(noxPred - baselineNox);
     setRecommendations(evaluateRecommendations(parameters));
@@ -130,8 +136,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("AT", v)}
                   unit="°C"
                   tooltip={tooltips.AT}
-                  min={stats.AT.p10}
-                  max={stats.AT.p90}
+                  min={stats.AT.min}
+                  max={stats.AT.max}
+                  datasetMin={stats.AT.min}
+                  datasetMax={stats.AT.max}
                 />
                 <InputField
                   label="AP"
@@ -139,8 +147,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("AP", v)}
                   unit="mbar"
                   tooltip={tooltips.AP}
-                  min={stats.AP.p10}
-                  max={stats.AP.p90}
+                  min={stats.AP.min}
+                  max={stats.AP.max}
+                  datasetMin={stats.AP.min}
+                  datasetMax={stats.AP.max}
                 />
                 <InputField
                   label="AH"
@@ -148,8 +158,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("AH", v)}
                   unit="%"
                   tooltip={tooltips.AH}
-                  min={stats.AH.p10}
-                  max={stats.AH.p90}
+                  min={stats.AH.min}
+                  max={stats.AH.max}
+                  datasetMin={stats.AH.min}
+                  datasetMax={stats.AH.max}
                 />
               </CardContent>
             </Card>
@@ -165,8 +177,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("AFDP", v)}
                   unit="bar"
                   tooltip={tooltips.AFDP}
-                  min={stats.AFDP.p10}
-                  max={stats.AFDP.p90}
+                  min={stats.AFDP.min}
+                  max={stats.AFDP.max}
+                  datasetMin={stats.AFDP.min}
+                  datasetMax={stats.AFDP.max}
                 />
                 <InputField
                   label="CDP"
@@ -174,8 +188,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("CDP", v)}
                   unit="bar"
                   tooltip={tooltips.CDP}
-                  min={stats.CDP.p10}
-                  max={stats.CDP.p90}
+                  min={stats.CDP.min}
+                  max={stats.CDP.max}
+                  datasetMin={stats.CDP.min}
+                  datasetMax={stats.CDP.max}
                 />
                 <InputField
                   label="GTEP"
@@ -183,8 +199,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("GTEP", v)}
                   unit="bar"
                   tooltip={tooltips.GTEP}
-                  min={stats.GTEP.p10}
-                  max={stats.GTEP.p90}
+                  min={stats.GTEP.min}
+                  max={stats.GTEP.max}
+                  datasetMin={stats.GTEP.min}
+                  datasetMax={stats.GTEP.max}
                 />
               </CardContent>
             </Card>
@@ -200,8 +218,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("TIT", v)}
                   unit="°C"
                   tooltip={tooltips.TIT}
-                  min={stats.TIT.p10}
-                  max={stats.TIT.p90}
+                  min={stats.TIT.min}
+                  max={stats.TIT.max}
+                  datasetMin={stats.TIT.min}
+                  datasetMax={stats.TIT.max}
                 />
                 <InputField
                   label="TAT"
@@ -209,8 +229,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("TAT", v)}
                   unit="°C"
                   tooltip={tooltips.TAT}
-                  min={stats.TAT.p10}
-                  max={stats.TAT.p90}
+                  min={stats.TAT.min}
+                  max={stats.TAT.max}
+                  datasetMin={stats.TAT.min}
+                  datasetMax={stats.TAT.max}
                 />
               </CardContent>
             </Card>
@@ -226,8 +248,10 @@ const Index = () => {
                   onChange={(v) => updateParameter("TEY", v)}
                   unit="MW"
                   tooltip={tooltips.TEY}
-                  min={stats.TEY.p10}
-                  max={stats.TEY.p90}
+                  min={stats.TEY.min}
+                  max={stats.TEY.max}
+                  datasetMin={stats.TEY.min}
+                  datasetMax={stats.TEY.max}
                 />
               </CardContent>
             </Card>

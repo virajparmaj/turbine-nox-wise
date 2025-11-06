@@ -12,9 +12,11 @@ interface InputFieldProps {
   tooltip: string;
   min: number;
   max: number;
+  datasetMin: number;
+  datasetMax: number;
 }
 
-export const InputField = ({ label, value, onChange, unit, tooltip, min, max }: InputFieldProps) => {
+export const InputField = ({ label, value, onChange, unit, tooltip, min, max, datasetMin, datasetMax }: InputFieldProps) => {
   const handleAdjustment = (percentage: number) => {
     const newValue = value * (1 + percentage / 100);
     const clampedValue = Math.max(min, Math.min(max, newValue));
@@ -82,6 +84,9 @@ export const InputField = ({ label, value, onChange, unit, tooltip, min, max }: 
           +10%
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        Typical Range: {datasetMin.toFixed(2)} – {datasetMax.toFixed(2)} (from dataset)
+      </p>
     </div>
   );
 };
