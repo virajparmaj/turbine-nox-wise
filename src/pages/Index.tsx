@@ -57,7 +57,13 @@ const Index = () => {
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('full');
-  const [apiBaseUrl, setApiBaseUrl] = useState<string>('https://your-domain.com');
+  const [apiBaseUrl] = useState<string>('http://127.0.0.1:8000');
+  const [history, setHistory] = useState<Array<{
+    timestamp: string;
+    model: string;
+    inputs: Record<string, number>;
+    noxPred: number;
+  }>>([]);
 
   useEffect(() => {
     parseCSV('/TurbineGroup2.csv').then(csvStats => {
@@ -145,6 +151,14 @@ const Index = () => {
       setDelta(noxPred - baselineNox);
       setRecommendations(evaluateRecommendations(parameters));
       
+      // Add to history
+      setHistory(prev => [...prev, {
+        timestamp: new Date().toLocaleString(),
+        model: modelLabels[selectedModel],
+        inputs: { ...parameters },
+        noxPred
+      }]);
+      
       toast({
         title: "Calculation complete",
         description: `NOx emissions: ${noxPred.toFixed(1)} ppm (${modelLabels[selectedModel]})`
@@ -152,13 +166,54 @@ const Index = () => {
     } catch (error) {
       console.error('Calculation error:', error);
       toast({
-        title: "Calculation failed",
-        description: error instanceof Error ? error.message : "Please check your API configuration",
+        title: "Prediction failed",
+        description: `Could not reach API at ${apiBaseUrl}${modelEndpoints[selectedModel]}`,
         variant: "destructive"
       });
     } finally {
       setIsCalculating(false);
     }
+  };
+
+  const exportHistoryCSV = () => {
+    if (history.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "Run some predictions first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const headers = ['Time', 'Model', 'TIT', 'TAT', 'CDP', 'GTEP', 'AFDP', 'AT', 'AP', 'AH', 'TEY', 'NOX_pred'];
+    const rows = history.map(h => [
+      h.timestamp,
+      h.model,
+      h.inputs.TIT,
+      h.inputs.TAT,
+      h.inputs.CDP,
+      h.inputs.GTEP,
+      h.inputs.AFDP,
+      h.inputs.AT,
+      h.inputs.AP,
+      h.inputs.AH,
+      h.inputs.TEY,
+      h.noxPred.toFixed(2)
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nox-predictions-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export complete",
+      description: `Downloaded ${history.length} predictions`
+    });
   };
 
   const handleReset = () => {
@@ -420,7 +475,7 @@ const Index = () => {
 
           {/* Right Column - Results */}
           <div className="space-y-6">
-            <PredictedNoxCard nox={nox} delta={delta} />
+            <PredictedNoxCard nox={nox} delta={delta} activeModel={modelLabels[selectedModel]} />
             <RecommendationsCard 
               messages={recommendations.messages} 
               severity={recommendations.severity} 
@@ -428,6 +483,60 @@ const Index = () => {
             <WhatChangedCard baseline={baseline} current={parameters} />
           </div>
         </div>
+
+        {/* History Section */}
+        {history.length > 0 && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Prediction History</CardTitle>
+                <Button variant="outline" size="sm" onClick={exportHistoryCSV}>
+                  Export CSV
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Time</th>
+                        <th className="text-left p-2">Model</th>
+                        <th className="text-right p-2">TIT</th>
+                        <th className="text-right p-2">TAT</th>
+                        <th className="text-right p-2">CDP</th>
+                        <th className="text-right p-2">GTEP</th>
+                        <th className="text-right p-2">AFDP</th>
+                        <th className="text-right p-2">AT</th>
+                        <th className="text-right p-2">AP</th>
+                        <th className="text-right p-2">AH</th>
+                        <th className="text-right p-2">TEY</th>
+                        <th className="text-right p-2 font-semibold">NOX</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((h, i) => (
+                        <tr key={i} className="border-b hover:bg-muted/50">
+                          <td className="p-2 text-muted-foreground">{h.timestamp}</td>
+                          <td className="p-2">{h.model}</td>
+                          <td className="text-right p-2">{h.inputs.TIT.toFixed(1)}</td>
+                          <td className="text-right p-2">{h.inputs.TAT.toFixed(1)}</td>
+                          <td className="text-right p-2">{h.inputs.CDP.toFixed(2)}</td>
+                          <td className="text-right p-2">{h.inputs.GTEP.toFixed(2)}</td>
+                          <td className="text-right p-2">{h.inputs.AFDP.toFixed(2)}</td>
+                          <td className="text-right p-2">{h.inputs.AT.toFixed(1)}</td>
+                          <td className="text-right p-2">{h.inputs.AP.toFixed(1)}</td>
+                          <td className="text-right p-2">{h.inputs.AH.toFixed(1)}</td>
+                          <td className="text-right p-2">{h.inputs.TEY.toFixed(1)}</td>
+                          <td className="text-right p-2 font-semibold">{h.noxPred.toFixed(1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );

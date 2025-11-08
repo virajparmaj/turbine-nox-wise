@@ -6,6 +6,7 @@ import { useMemo } from "react";
 interface PredictedNoxCardProps {
   nox: number | null;
   delta: number | null;
+  activeModel?: string;
 }
 
 const ADVISORY_MESSAGES = [
@@ -25,7 +26,7 @@ const ADVISORY_MESSAGES = [
   "Run a quick backtest showing expected NOx reduction for each intervention."
 ];
 
-export const PredictedNoxCard = ({ nox, delta }: PredictedNoxCardProps) => {
+export const PredictedNoxCard = ({ nox, delta, activeModel }: PredictedNoxCardProps) => {
   const advisoryMessages = useMemo(() => {
     if (!delta || delta <= 0) return [];
     
@@ -48,6 +49,11 @@ export const PredictedNoxCard = ({ nox, delta }: PredictedNoxCardProps) => {
     <Card className="border-2">
       <CardHeader>
         <CardTitle>Predicted NOx</CardTitle>
+        {activeModel && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Active model: {activeModel}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center space-y-2">
