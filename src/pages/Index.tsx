@@ -27,7 +27,7 @@ const tooltips = {
 type ModelType = 'full' | '130_136' | '160p';
 
 // ✅ Base URL for backend FastAPI
-const API_BASE_URL = "https://turbine-api.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // ✅ Clean endpoint mapping — no double prefixes
 const modelEndpoints: Record<ModelType, string> = {
