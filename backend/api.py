@@ -23,11 +23,13 @@ app = FastAPI()
 # Allow local frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # you can restrict to ["http://127.0.0.1:5173"] for safety
-    allow_credentials=True,
+    allow_origins=[
+        "https://turbine-nox-wise.vercel.app"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # === Routes ===
 @app.post("/predict_full")
