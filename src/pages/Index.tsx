@@ -9,6 +9,8 @@ import { RotateCcw, Gauge, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, StatsMap } from "@/utils/csvParser";
 import { evaluateRecommendations } from "@/utils/recommendations";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const tooltips = {
   AT: "Ambient Temperature - Temperature of air entering the turbine",
@@ -20,6 +22,26 @@ const tooltips = {
   TIT: "Turbine Inlet Temperature - Temperature of gas entering turbine",
   TAT: "Turbine Exhaust Temperature - Temperature of exhaust gases",
   TEY: "Turbine Energy Yield - Power output of the turbine"
+};
+
+type ModelType = 'full' | '130_136' | '160p';
+
+const modelEndpoints: Record<ModelType, string> = {
+  full: '/predict_full',
+  '130_136': '/predict_130_136',
+  '160p': '/predict_160p'
+};
+
+const modelLabels: Record<ModelType, string> = {
+  full: 'Full Model (All Data)',
+  '130_136': '130–136 Band Model',
+  '160p': '160+ Band Model'
+};
+
+const modelDescriptions: Record<ModelType, string> = {
+  full: 'All turbine loads',
+  '130_136': 'Medium load regime',
+  '160p': 'High load regime'
 };
 
 const Index = () => {
@@ -34,6 +56,8 @@ const Index = () => {
     severity: 'green'
   });
   const [isCalculating, setIsCalculating] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelType>('full');
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('https://your-domain.com');
 
   useEffect(() => {
     parseCSV('/TurbineGroup2.csv').then(csvStats => {
@@ -49,7 +73,7 @@ const Index = () => {
     });
   }, []);
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     setIsCalculating(true);
     
     // Clear previous results to ensure fresh calculation
@@ -57,20 +81,84 @@ const Index = () => {
     setDelta(null);
     setRecommendations({ messages: [], severity: 'green' });
     
-    // Recalculate NOx with current parameters
-    const noxPred = 0.5 * parameters.TIT - 0.3 * parameters.AT + 4.0 * parameters.AFDP + 0.1 * parameters.TEY - 0.2 * parameters.TAT;
-    const baselineNox = 0.5 * baseline.TIT - 0.3 * baseline.AT + 4.0 * baseline.AFDP + 0.1 * baseline.TEY - 0.2 * baseline.TAT;
-    
-    // Set fresh results
-    setNox(noxPred);
-    setDelta(noxPred - baselineNox);
-    setRecommendations(evaluateRecommendations(parameters));
-    setIsCalculating(false);
-    
-    toast({
-      title: "Calculation complete",
-      description: `NOx emissions: ${noxPred.toFixed(1)} ppm`
-    });
+    try {
+      // Prepare payload for backend
+      const payload = {
+        TIT: parameters.TIT,
+        TAT: parameters.TAT,
+        CDP: parameters.CDP,
+        GTEP: parameters.GTEP,
+        AFDP: parameters.AFDP,
+        AT: parameters.AT,
+        AP: parameters.AP,
+        AH: parameters.AH,
+        TEY: parameters.TEY
+      };
+
+      // Call the selected model endpoint
+      const endpoint = `${apiBaseUrl}${modelEndpoints[selectedModel]}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const noxPred = data.NOX_pred;
+
+      // Calculate baseline NOx using the same model
+      const baselinePayload = {
+        TIT: baseline.TIT,
+        TAT: baseline.TAT,
+        CDP: baseline.CDP,
+        GTEP: baseline.GTEP,
+        AFDP: baseline.AFDP,
+        AT: baseline.AT,
+        AP: baseline.AP,
+        AH: baseline.AH,
+        TEY: baseline.TEY
+      };
+
+      const baselineResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(baselinePayload)
+      });
+
+      if (!baselineResponse.ok) {
+        throw new Error(`Baseline API request failed: ${baselineResponse.statusText}`);
+      }
+
+      const baselineData = await baselineResponse.json();
+      const baselineNox = baselineData.NOX_pred;
+      
+      // Set fresh results
+      setNox(noxPred);
+      setDelta(noxPred - baselineNox);
+      setRecommendations(evaluateRecommendations(parameters));
+      
+      toast({
+        title: "Calculation complete",
+        description: `NOx emissions: ${noxPred.toFixed(1)} ppm (${modelLabels[selectedModel]})`
+      });
+    } catch (error) {
+      console.error('Calculation error:', error);
+      toast({
+        title: "Calculation failed",
+        description: error instanceof Error ? error.message : "Please check your API configuration",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleReset = () => {
@@ -120,6 +208,69 @@ const Index = () => {
           </div>
         </div>
       </header>
+
+      {/* Model Selection Bar */}
+      <div className="border-b bg-card/50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Model Selection</h2>
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-xs font-medium text-primary">{modelLabels[selectedModel]} Active</span>
+              </div>
+            </div>
+            <TooltipProvider>
+              <Tabs value={selectedModel} onValueChange={(value) => setSelectedModel(value as ModelType)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-auto">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="full" className="py-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-medium">Full Model</span>
+                          <span className="text-xs text-muted-foreground">All Data</span>
+                        </div>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{modelDescriptions.full}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="130_136" className="py-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-medium">130–136 Band</span>
+                          <span className="text-xs text-muted-foreground">Medium Load</span>
+                        </div>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{modelDescriptions['130_136']}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="160p" className="py-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-medium">160+ Band</span>
+                          <span className="text-xs text-muted-foreground">High Load</span>
+                        </div>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{modelDescriptions['160p']}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TabsList>
+              </Tabs>
+            </TooltipProvider>
+            <p className="text-xs text-muted-foreground text-center">
+              Current model determines which turbine band NOx predictor is active.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-2 gap-8">
