@@ -1,0 +1,40 @@
+{
+  "model_name": "NOX_XGB_130_136",
+  "version": 1,
+  "timestamp": "2025-11-07 15:28:55",
+  "features": [
+    "TIT",
+    "TAT",
+    "CDP",
+    "GTEP",
+    "AFDP",
+    "AT",
+    "AP",
+    "AH",
+    "TEY"
+  ],
+  "band": "130_136",
+  "rows": 5199,
+  "best_params": {
+    "n_estimators": 899,
+    "max_depth": 13,
+    "learning_rate": 0.022142243177340572,
+    "subsample": 0.8659342539806942,
+    "colsample_bytree": 0.9495664886660041,
+    "min_child_weight": 3,
+    "gamma": 0.35945913250673117,
+    "reg_lambda": 9.18577158327999
+  },
+  "cv": {
+    "cv_r2_mean": 0.790831726578209,
+    "cv_r2_std": 0.017807409937367347,
+    "cv_mae_mean": 2.315083535141434,
+    "cv_mae_std": 0.08450753233846015
+  },
+  "holdout": {
+    "r2": 0.8017231177608322,
+    "mae": 2.279223380279541,
+    "rmse": 3.4353189155543022,
+    "mape": 3.350478139735634
+  }
+}

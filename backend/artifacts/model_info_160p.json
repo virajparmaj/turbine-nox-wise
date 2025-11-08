@@ -1,0 +1,40 @@
+{
+  "model_name": "NOX_XGB_160p",
+  "version": 1,
+  "timestamp": "2025-11-07 15:28:55",
+  "features": [
+    "TIT",
+    "TAT",
+    "CDP",
+    "GTEP",
+    "AFDP",
+    "AT",
+    "AP",
+    "AH",
+    "TEY"
+  ],
+  "band": "160p",
+  "rows": 678,
+  "best_params": {
+    "n_estimators": 577,
+    "max_depth": 14,
+    "learning_rate": 0.0207918689224285,
+    "subsample": 0.7129808381641134,
+    "colsample_bytree": 0.9571374479210213,
+    "min_child_weight": 4,
+    "gamma": 0.4701221917505558,
+    "reg_lambda": 4.67870712742365
+  },
+  "cv": {
+    "cv_r2_mean": 0.7871839159205762,
+    "cv_r2_std": 0.03503770470106596,
+    "cv_mae_mean": 2.2199587762185224,
+    "cv_mae_std": 0.22260079972339863
+  },
+  "holdout": {
+    "r2": 0.7990492252686338,
+    "mae": 2.0629540939331052,
+    "rmse": 2.836377965186929,
+    "mape": 3.0171003131612655
+  }
+}

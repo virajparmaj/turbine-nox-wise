@@ -26,22 +26,28 @@ const tooltips = {
 
 type ModelType = 'full' | '130_136' | '160p';
 
+// ✅ Base URL for backend FastAPI
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+// ✅ Clean endpoint mapping — no double prefixes
 const modelEndpoints: Record<ModelType, string> = {
-  full: '/predict_full',
-  '130_136': '/predict_130_136',
-  '160p': '/predict_160p'
+  full: "/predict_full",
+  '130_136': "/predict_130_136",
+  '160p': "/predict_160p"
 };
 
+// ✅ Labels for UI tabs
 const modelLabels: Record<ModelType, string> = {
-  full: 'Full Model (All Data)',
-  '130_136': '130–136 Band Model',
-  '160p': '160+ Band Model'
+  full: "Full Model (All Data)",
+  '130_136': "130–136 Band Model",
+  '160p': "160+ Band Model"
 };
 
+// ✅ Descriptions for tooltips or info panels
 const modelDescriptions: Record<ModelType, string> = {
-  full: 'All turbine loads',
-  '130_136': 'Medium load regime',
-  '160p': 'High load regime'
+  full: "All turbine loads",
+  '130_136': "Medium load regime",
+  '160p': "High load regime"
 };
 
 const Index = () => {
@@ -61,7 +67,6 @@ const Index = () => {
   const [diffs, setDiffs] = useState<DiffItem[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('full');
-  const [apiBaseUrl] = useState<string>('http://127.0.0.1:8000');
   const [history, setHistory] = useState<Array<{
     timestamp: string;
     model: string;
@@ -107,7 +112,7 @@ const Index = () => {
       };
 
       // Call the selected model endpoint
-      const endpoint = `${apiBaseUrl}${modelEndpoints[selectedModel]}`;
+      const endpoint = `${API_BASE_URL}${modelEndpoints[selectedModel]}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -205,7 +210,7 @@ const Index = () => {
       console.error('Calculation error:', error);
       toast({
         title: "Prediction failed",
-        description: `Could not reach API at ${apiBaseUrl}${modelEndpoints[selectedModel]}`,
+        description: `Could not reach API at ${API_BASE_URL}${modelEndpoints[selectedModel]}`,
         variant: "destructive"
       });
     } finally {
