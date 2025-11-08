@@ -8,7 +8,7 @@ import { WhatChangedCard } from "@/components/WhatChangedCard";
 import { RotateCcw, Gauge, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, StatsMap } from "@/utils/csvParser";
-import { evaluateRecommendations } from "@/utils/recommendations";
+import { renderRecommendations, type DiffItem, type RiskLevel } from "@/utils/recommendations";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -51,10 +51,14 @@ const Index = () => {
   const [parameters, setParameters] = useState<Record<string, number>>({});
   const [nox, setNox] = useState<number | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
-  const [recommendations, setRecommendations] = useState<{ messages: string[]; severity: 'green' | 'yellow' | 'orange' | 'red' }>({
+  const [baselineNox, setBaselineNox] = useState<number | null>(null);
+  const [previousNox, setPreviousNox] = useState<number | null>(null);
+  const [previousPayload, setPreviousPayload] = useState<Record<string, number> | null>(null);
+  const [recommendations, setRecommendations] = useState<{ messages: string[]; risk: RiskLevel }>({
     messages: ["Click Calculate to see recommendations"],
-    severity: 'green'
+    risk: 'Normal'
   });
+  const [diffs, setDiffs] = useState<DiffItem[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('full');
   const [apiBaseUrl] = useState<string>('http://127.0.0.1:8000');
@@ -85,7 +89,8 @@ const Index = () => {
     // Clear previous results to ensure fresh calculation
     setNox(null);
     setDelta(null);
-    setRecommendations({ messages: [], severity: 'green' });
+    setRecommendations({ messages: [], risk: 'Normal' });
+    setDiffs([]);
     
     try {
       // Prepare payload for backend
@@ -118,38 +123,71 @@ const Index = () => {
       const data = await response.json();
       const noxPred = data.NOX_pred;
 
-      // Calculate baseline NOx using the same model
-      const baselinePayload = {
-        TIT: baseline.TIT,
-        TAT: baseline.TAT,
-        CDP: baseline.CDP,
-        GTEP: baseline.GTEP,
-        AFDP: baseline.AFDP,
-        AT: baseline.AT,
-        AP: baseline.AP,
-        AH: baseline.AH,
-        TEY: baseline.TEY
-      };
+      // Calculate baseline NOx once if not already set
+      let currentBaselineNox = baselineNox;
+      if (currentBaselineNox === null) {
+        const baselinePayload = {
+          TIT: baseline.TIT,
+          TAT: baseline.TAT,
+          CDP: baseline.CDP,
+          GTEP: baseline.GTEP,
+          AFDP: baseline.AFDP,
+          AT: baseline.AT,
+          AP: baseline.AP,
+          AH: baseline.AH,
+          TEY: baseline.TEY
+        };
 
-      const baselineResponse = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(baselinePayload)
-      });
+        const baselineResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(baselinePayload)
+        });
 
-      if (!baselineResponse.ok) {
-        throw new Error(`Baseline API request failed: ${baselineResponse.statusText}`);
+        if (baselineResponse.ok) {
+          const baselineData = await baselineResponse.json();
+          currentBaselineNox = baselineData.NOX_pred;
+          setBaselineNox(currentBaselineNox);
+        }
+      }
+      
+      // Build histMinMax from stats
+      const histMinMax: Record<string, { min: number; max: number }> = {};
+      if (stats) {
+        Object.keys(stats).forEach(key => {
+          if (key !== 'CO' && key !== 'NOX') {
+            histMinMax[key] = {
+              min: stats[key as keyof StatsMap].min,
+              max: stats[key as keyof StatsMap].max
+            };
+          }
+        });
       }
 
-      const baselineData = await baselineResponse.json();
-      const baselineNox = baselineData.NOX_pred;
-      
+      // Generate recommendations using deterministic rules
+      const result = renderRecommendations({
+        activeModel: selectedModel,
+        payload,
+        prediction: noxPred,
+        previousPrediction: previousNox,
+        previousPayload,
+        siteLimitNOx: null,
+        baselineNOx: currentBaselineNox,
+        histMinMax,
+        bandMedians: baseline
+      });
+
       // Set fresh results
       setNox(noxPred);
-      setDelta(noxPred - baselineNox);
-      setRecommendations(evaluateRecommendations(parameters));
+      setDelta(currentBaselineNox ? noxPred - currentBaselineNox : null);
+      setRecommendations({ messages: result.recs, risk: result.risk });
+      setDiffs(result.diffs);
+      
+      // Store for next comparison
+      setPreviousNox(noxPred);
+      setPreviousPayload({ ...payload });
       
       // Add to history
       setHistory(prev => [...prev, {
@@ -220,7 +258,10 @@ const Index = () => {
     setParameters({ ...baseline });
     setNox(null);
     setDelta(null);
-    setRecommendations({ messages: ["Click Calculate to see recommendations"], severity: 'green' });
+    setRecommendations({ messages: ["Click Calculate to see recommendations"], risk: 'Normal' });
+    setDiffs([]);
+    setPreviousNox(null);
+    setPreviousPayload(null);
     toast({
       title: "Reset to baseline",
       description: "All parameters reset to median values from dataset"
@@ -478,9 +519,9 @@ const Index = () => {
             <PredictedNoxCard nox={nox} delta={delta} activeModel={modelLabels[selectedModel]} />
             <RecommendationsCard 
               messages={recommendations.messages} 
-              severity={recommendations.severity} 
+              risk={recommendations.risk} 
             />
-            <WhatChangedCard baseline={baseline} current={parameters} />
+            <WhatChangedCard diffs={diffs} />
           </div>
         </div>
 
