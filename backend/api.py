@@ -20,16 +20,21 @@ class Sample(BaseModel):
 
 app = FastAPI()
 
-# Allow local frontend to talk to backend
+# --------------------------------------------------
+# ✅ Correct CORS (local dev + LAN + Vercel)
+# --------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://turbine-nox-wise.vercel.app"
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://192.168.111.119:8080",
+        "https://turbine-nox-wise.vercel.app",
     ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # === Routes ===
 @app.post("/predict_full")
