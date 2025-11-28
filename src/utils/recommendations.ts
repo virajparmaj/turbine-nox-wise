@@ -26,8 +26,7 @@ interface EvaluationState {
   siteLimitNOx: number | null;
   baselineNOx: number | null;
   /**
-   * For this version, histMinMax is assumed to hold the
-   * recommended operating min/max per band (from JSON),
+   * histMinMax holds the recommended operating min/max per band (from JSON),
    * not raw historical extremes.
    *
    * Example for the active band:
@@ -35,7 +34,7 @@ interface EvaluationState {
    *     TIT: { min: 1054, max: 1100 },
    *     TAT: { min: 533, max: 550 },
    *     CDP: { min: 10.4, max: 12.2 },
-   *     GTEP: { min: 19.4, max: 26.2 },
+   *     GTEP:{ min: 19.4, max: 26.2 },
    *     AFDP:{ min: 2.94, max: 4.34 },
    *     ...
    *   }
@@ -53,19 +52,27 @@ interface EvaluationState {
 // ----------------------------------------------------------------------
 
 const REC_LIBRARY = {
-  // Fine-tuning levers
-  AFDP_HIGH:
-    "Air filter loading is high. Clean or replace filters to restore healthy airflow and reduce NOx peaks.",
+  // Fine-tuning / condition levers
+  AFDP_HIGH_PERF:
+    "Filter loading is above the recommended band. Plan cleaning to protect performance and margins; NOx impact is usually small.",
+  AFDP_TOO_CLEAN_COLD:
+    "Very clean filters on a cold day (low AFDP + low AT). Air is dense and flows too easily, so NOx naturally runs higher.",
   TIT_HIGH:
-    "Firing temperature is on the high side for this band. If you still have margin below the limit, lowering TIT slightly can reduce NOx.",
+    "Firing temperature is above the typical band. For this unit TIT is normally limit-controlled, so only large deviations need attention.",
   TAT_RISING:
-    "Exhaust temperature is high for this band. Check fuel sharing and burner balance.",
+    "Exhaust temperature is above its normal band. Check burner balance and fuel sharing.",
   CDP_OFF:
-    "Compressor discharge pressure is unusual for this load. Check for fouling, leaks, or guide vane issues.",
-  GTEP_VERY_HIGH:
-    "You are running at very high load. Near peak load, NOx tends to rise. If emissions margin is small, consider a small load reduction.",
+    "Compressor discharge pressure looks unusual for this load. Check for fouling, leaks, or guide vane issues.",
   AH_HIGH:
     "Air is very humid. If water/steam injection is used, confirm that injection and NOx controls are coordinated.",
+
+  // Ambient / weather context
+  COLD_DAY:
+    "Cold ambient day. Even at normal settings NOx tends to run higher because dense air increases flame temperature.",
+  WARM_DAY:
+    "Warm ambient day. NOx tends to run lower and tuning is more forgiving.",
+  TIT_LIMITED_COLD:
+    "On this cold day TIT is already near its limit. Small setting changes will not significantly reduce NOx.",
 
   // Non-tuning / safety
   OUT_OF_RANGE:
@@ -75,37 +82,55 @@ const REC_LIBRARY = {
   LARGE_JUMP:
     "NOx changed a lot while settings barely moved. Check sensors and review any recent manual changes.",
   WEATHER_ONLY:
-    "Most of the change looks driven by weather (ambient conditions) rather than turbine settings.",
+    "The change in NOx is mainly explained by weather (ambient temperature/pressure/humidity), not by turbine settings.",
   MULTIPLE_DRIVERS:
-    "Several levers are acting together. Change one thing at a time and let the machine settle before re-tuning.",
+    "Several factors are active together. Change one thing at a time and let the machine settle before re-tuning.",
   PRIORITY_ORDER:
-    "Suggested order: address filter loading (AFDP) → check airflow/CDP → tune TIT/TAT → adjust load (GTEP) if still needed.",
+    "Suggested order: watch cold days → avoid ultra-clean filters on cold days → keep within recommended bands → only then adjust other settings.",
 };
 
 const ADV_LIBRARY = {
   NOX_UP: "NOx is higher than your reference run under these conditions.",
   NOX_DOWN: "NOx is lower than your reference run under these conditions.",
   RISK_HIGH:
-    "There is a high chance of running close to or above your NOx limit. Tune slowly and monitor closely.",
+    "High chance of running close to or above your NOx limit. Any tuning should be slow and carefully monitored.",
   RISK_WATCH:
     "Noticeable NOx change. Make small moves and watch the trend after each step.",
   LOW_CONF:
     "Some inputs are outside the model’s normal operating window, so this prediction is less reliable.",
   WEATHER:
-    "Most of the change appears to come from ambient conditions (AT/AP/AH), not from turbine settings.",
+    "NOx here is mainly driven by ambient temperature (cold vs warm conditions), not by turbine settings.",
   FILTER_DRIVER:
-    "Filter loading (AFDP) is a key NOx driver in this scenario. Keeping AFDP on the lower side of the range helps limit NOx spikes.",
+    "On cold days, very clean filters (low AFDP) increase airflow and can push NOx up. Slightly higher AFDP is acceptable.",
   TEMP_DRIVER:
-    "Combustor temperatures (TIT/TAT) are an important NOx driver right now.",
+    "For this unit, combustor temperatures are usually at their control limit and are a secondary NOx lever. Only large deviations matter.",
   LOAD_DRIVER:
-    "High load (GTEP/TEY) is contributing to higher NOx. Near peak load, even clean machines run hotter on emissions.",
+    "Load level has only a minor effect on NOx for this turbine. Adjust it mainly for power demand, not emissions.",
   AIRFLOW_DRIVER:
-    "Overall airflow (CDP/AFDP) is affecting NOx. Healthy compressor and inlet conditions support cleaner combustion.",
+    "Overall airflow (CDP/AFDP) is influencing NOx, but the dominant effect comes from cold, dense air.",
 };
 
 // Utility
 function pctDiff(v: number, base: number) {
   return (v - base) / base;
+}
+
+function bumpRiskUp(risk: RiskLevel, steps = 1): RiskLevel {
+  if (risk === "Low confidence") return risk;
+  const ladder: RiskLevel[] = ["Normal", "Watch", "High"];
+  const idx = ladder.indexOf(risk);
+  if (idx === -1) return risk;
+  const newIdx = Math.min(idx + steps, ladder.length - 1);
+  return ladder[newIdx];
+}
+
+function bumpRiskDown(risk: RiskLevel, steps = 1): RiskLevel {
+  if (risk === "Low confidence") return risk;
+  const ladder: RiskLevel[] = ["Normal", "Watch", "High"];
+  const idx = ladder.indexOf(risk);
+  if (idx === -1) return risk;
+  const newIdx = Math.max(idx - steps, 0);
+  return ladder[newIdx];
 }
 
 // ----------------------------------------------------------------------
@@ -134,6 +159,17 @@ export function renderRecommendations(
 
   const isHighLoadBand = activeModel === "160p";
 
+  const at = payload.AT;
+  const afdpCurrent = payload.AFDP;
+  const titCurrent = payload.TIT;
+
+  // Simple thresholds from study
+  const COLD_AT = 15;       // °C
+  const VERY_COLD_AT = 12;  // °C
+  const WARM_AT = 20;       // °C
+  const AFDP_TOO_CLEAN = 3.2;
+  const AFDP_TOO_LOADED = 4.5;
+
   // -----------------------------
   // 1) Change in NOx vs reference
   // -----------------------------
@@ -141,7 +177,7 @@ export function renderRecommendations(
   const deltaPctVsPrev = ref ? (100 * (prediction - ref)) / ref : null;
 
   // -----------------------------
-  // 2) Risk level
+  // 2) Base risk level
   // -----------------------------
   let risk: RiskLevel = "Normal";
   let outOfRange = false;
@@ -167,6 +203,29 @@ export function renderRecommendations(
       risk = "High";
     } else if (abs > 5 && abs <= 15) {
       risk = "Watch";
+    }
+  }
+
+  // -----------------------------
+  // 2a) Risk tweaks from ambient rules
+  // -----------------------------
+  if (typeof at === "number") {
+    // Rule 2: very cold day → bump by 2 levels
+    if (at < VERY_COLD_AT) {
+      risk = bumpRiskUp(risk, 2);
+    } else if (at < COLD_AT) {
+      // Rule 1/2: cold day → bump at least one level
+      risk = bumpRiskUp(risk, 1);
+    } else if (at > WARM_AT) {
+      // Rule 5: warm day → one level lower risk
+      risk = bumpRiskDown(risk, 1);
+    }
+  }
+
+  if (typeof at === "number" && typeof afdpCurrent === "number") {
+    // Rule 1: cold + very clean filter → extra push toward High risk
+    if (at < COLD_AT && afdpCurrent < AFDP_TOO_CLEAN) {
+      risk = bumpRiskUp(risk, 1);
     }
   }
 
@@ -209,18 +268,18 @@ export function renderRecommendations(
   const cdpMedian = bandMedians.CDP;
   const gtepMedian = bandMedians.GTEP;
 
-  // Basic levers:
-  // AFDP high = above upper recommended range for this band
+  // AFDP high (performance), not primary NOx driver
   const afdpHigh =
     afdpStats !== undefined && payload.AFDP > afdpStats.max;
 
-  // TIT high: only meaningful when we are NOT already at the control limit band
+  // TIT high: only meaningful when NOT at the control-limit band
   const titMedian = bandMedians.TIT;
   const titHigh =
-    !isHighLoadBand && titMedian !== undefined &&
+    !isHighLoadBand &&
+    titMedian !== undefined &&
     payload.TIT > titMedian * 1.03;
 
-  // TAT high: above recommended max (use stats if available, else median-based)
+  // TAT high: above recommended max (or median-based)
   let tatHigh = false;
   if (tatStats) {
     tatHigh = payload.TAT > tatStats.max;
@@ -228,24 +287,57 @@ export function renderRecommendations(
     tatHigh = payload.TAT > bandMedians.TAT * 1.02;
   }
 
-  // CDP off: significant deviation from band median (load/airflow issue)
+  // CDP off: significant deviation from band median
   const cdpOff =
     cdpMedian !== undefined &&
     Math.abs(payload.CDP - cdpMedian) > 0.05 * cdpMedian;
 
-  // GTEP very high: substantially above median → near peak load for that band
+  // We keep gtepMedian for completeness but do not treat high load as a NOx driver
   const gtepHigh =
     gtepMedian !== undefined &&
-    payload.GTEP > gtepMedian * 1.05;
+    payload.GTEP > gtepMedian * 1.10; // unused, but harmless
 
-  // High humidity
   const ahHigh = payload.AH > 80;
 
   // --- Single-driver checks ---
 
-  if (afdpHigh) {
-    triggered.push(REC_LIBRARY.AFDP_HIGH);
+  // Ambient context first
+  if (typeof at === "number") {
+    if (at < COLD_AT) {
+      triggered.push(REC_LIBRARY.COLD_DAY);
+      advisory.push(ADV_LIBRARY.WEATHER);
+    } else if (at > WARM_AT) {
+      triggered.push(REC_LIBRARY.WARM_DAY);
+    }
+  }
+
+  // Very cold + TIT near recommended max → limited tuning options
+  if (
+    typeof at === "number" &&
+    at < COLD_AT &&
+    titStats &&
+    typeof titCurrent === "number" &&
+    titCurrent > titStats.max * 0.99
+  ) {
+    triggered.push(REC_LIBRARY.TIT_LIMITED_COLD);
+  }
+
+  // Cold + very clean filter (low AFDP) → NOx risk
+  if (
+    typeof at === "number" &&
+    typeof afdpCurrent === "number" &&
+    at < COLD_AT &&
+    afdpCurrent < AFDP_TOO_CLEAN
+  ) {
+    triggered.push(REC_LIBRARY.AFDP_TOO_CLEAN_COLD);
     if (NOxUp) advisory.push(ADV_LIBRARY.FILTER_DRIVER);
+  }
+
+  // High AFDP → performance warning, not primarily emissions
+  if (typeof afdpCurrent === "number" && afdpCurrent > AFDP_TOO_LOADED) {
+    triggered.push(REC_LIBRARY.AFDP_HIGH_PERF);
+  } else if (afdpHigh) {
+    triggered.push(REC_LIBRARY.AFDP_HIGH_PERF);
   }
 
   if (titHigh) {
@@ -263,51 +355,11 @@ export function renderRecommendations(
     advisory.push(ADV_LIBRARY.AIRFLOW_DRIVER);
   }
 
-  if (gtepHigh) {
-    triggered.push(REC_LIBRARY.GTEP_VERY_HIGH);
-    advisory.push(ADV_LIBRARY.LOAD_DRIVER);
-  }
-
   if (ahHigh) {
     triggered.push(REC_LIBRARY.AH_HIGH);
   }
 
-  // --- Band-specific nuance: at 160+ AFDP matters even more for NOx ---
-  if (isHighLoadBand && afdpHigh && NOxUp) {
-    triggered.push(
-      "At full load, loaded filters push NOx up more strongly. Keeping AFDP closer to the low end of the 160+ range is especially important."
-    );
-  }
-
-  // Simplified interaction rules
-
-  // AFDP × AT: filter impact worse on hot days
-  if (
-    afdpHigh &&
-    previousPayload &&
-    bandMedians.AT !== undefined &&
-    payload.AT > bandMedians.AT * 1.1
-  ) {
-    triggered.push(
-      "Hot day with a loaded filter. Reducing AFDP via filter maintenance can give a clear NOx benefit."
-    );
-  }
-
-  // GTEP × AFDP: both inlet and load are stressing the machine
-  if (gtepHigh && afdpHigh) {
-    triggered.push(
-      "You are at high load with a loaded filter. Inspect inlet filters and consider a small load reduction if emissions margin is tight."
-    );
-  }
-
-  // TIT × TAT: combustion imbalance
-  if (titHigh && tatHigh) {
-    triggered.push(
-      "Combustor temperatures are high and exhaust is hot. Re-check fuel distribution between burners for balance."
-    );
-  }
-
-  // Ambient-only change
+  // --- Ambient-only change relative to previous point ---
   const ambientOnly =
     previousPayload &&
     Math.abs(pctDiff(payload.AT, previousPayload.AT)) > 0.05 &&
@@ -320,7 +372,11 @@ export function renderRecommendations(
   }
 
   // Big NOx jump with tiny setting changes → likely sensor / one-off event
-  if (previousPayload && deltaPctVsPrev !== null && Math.abs(deltaPctVsPrev) > 10) {
+  if (
+    previousPayload &&
+    deltaPctVsPrev !== null &&
+    Math.abs(deltaPctVsPrev) > 10
+  ) {
     let total = 0;
     let count = 0;
 
@@ -346,10 +402,14 @@ export function renderRecommendations(
   const finalRecs = triggered.slice(0, 5);
 
   if (finalAdvisory.length === 0) {
-    finalAdvisory.push("Operating close to normal for this load band and ambient conditions.");
+    finalAdvisory.push(
+      "Operating close to normal for this load band and ambient conditions."
+    );
   }
   if (finalRecs.length === 0) {
-    finalRecs.push("Operating within the recommended range. No tuning action suggested.");
+    finalRecs.push(
+      "Operating within the recommended range. No tuning action suggested."
+    );
   }
 
   // -----------------------------
