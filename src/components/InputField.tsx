@@ -14,6 +14,10 @@ interface InputFieldProps {
   max: number;
   datasetMin: number;
   datasetMax: number;
+
+  // NEW OPTIONAL PROPS (CORRECT)
+  recommendedMin?: number;
+  recommendedMax?: number;
 }
 
 export const InputField = ({
@@ -26,26 +30,28 @@ export const InputField = ({
   max,
   datasetMin,
   datasetMax,
+  recommendedMin,
+  recommendedMax
 }: InputFieldProps) => {
 
-  // Dynamic step based on actual variable range
+  // Step is calculated correctly
   const step = (max - min) / 20;
 
   const adjustStep = (dir: "inc" | "dec") => {
     const newValue = dir === "inc" ? value + step : value - step;
-
-    // clamp to dataset bounds
     const clamped = Math.max(min, Math.min(max, newValue));
     onChange(Number(clamped.toFixed(2)));
   };
 
   return (
     <div className="space-y-2">
+
       {/* Label + Tooltip */}
       <div className="flex items-center gap-2">
         <Label htmlFor={label} className="text-sm font-medium text-foreground">
           {label} <span className="text-muted-foreground">({unit})</span>
         </Label>
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -58,7 +64,7 @@ export const InputField = ({
         </TooltipProvider>
       </div>
 
-      {/* Main input */}
+      {/* Input field */}
       <Input
         id={label}
         type="number"
@@ -70,31 +76,28 @@ export const InputField = ({
         max={max}
       />
 
-      {/* Adjustment Buttons */}
+      {/* Increment / Decrement buttons */}
       <div className="flex gap-2 justify-between">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => adjustStep("dec")}
-          className="text-xs w-1/2"
-        >
+        <Button size="sm" variant="outline" onClick={() => adjustStep("dec")} className="text-xs w-1/2">
           –
         </Button>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => adjustStep("inc")}
-          className="text-xs w-1/2"
-        >
+        <Button size="sm" variant="outline" onClick={() => adjustStep("inc")} className="text-xs w-1/2">
           +
         </Button>
       </div>
 
-      {/* Display Typical Range */}
+      {/* Dataset Typical Range */}
       <p className="text-xs text-muted-foreground mt-1">
         Typical Range: {datasetMin.toFixed(2)} – {datasetMax.toFixed(2)} (from dataset)
       </p>
+
+      {/* NEW — Recommended Range */}
+      {recommendedMin !== undefined && recommendedMax !== undefined && (
+        <p className="text-xs font-medium text-green-600 mt-1">
+          Recommended Range: {recommendedMin} – {recommendedMax}
+        </p>
+      )}
     </div>
   );
 };

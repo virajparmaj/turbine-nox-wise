@@ -1,3 +1,27 @@
+const recommendedRanges = {
+  full: {
+    TIT: [1054, 1100],
+    TAT: [533, 550],
+    CDP: [10.4, 12.2],
+    GTEP: [19.4, 26.2],
+    AFDP: [2.94, 4.34]
+  },
+  "130_136": {
+    TIT: [1077, 1094],
+    TAT: [549.6, 550.3],
+    CDP: [11.55, 12.35],
+    GTEP: [24.5, 25.9],
+    AFDP: [2.95, 3.92]
+  },
+  "160p": {
+    TIT: [1100, 1100],
+    TAT: [522, 535],
+    CDP: [13.88, 14.47],
+    GTEP: [32.4, 35.0],
+    AFDP: [3.82, 4.34]
+  }
+};
+
 // ----------------------------------------------------------
 // ONLY NECESSARY CHANGES DONE — NOTHING ELSE MODIFIED
 // ----------------------------------------------------------
@@ -28,27 +52,19 @@ const tooltips = {
   TEY: "Turbine Energy Yield - Power output of the turbine"
 };
 
-
 type ModelType = "full" | "130_136" | "160p";
 
-// ----------------------------------------------------------
-// ✅ Correct API base URL with safe fallback
-// ----------------------------------------------------------
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "https://turbine-nox-wise.onrender.com";
 
 console.log("API_BASE_URL =", import.meta.env.VITE_API_URL);
 
-// ----------------------------------------------------------
-// ❗Correct backend endpoints (NO /api prefix)
-// ----------------------------------------------------------
 const modelEndpoints: Record<ModelType, string> = {
   full: "/predict_full",
   "130_136": "/predict_130_136",
   "160p": "/predict_160p"
 };
 
-// Labels + descriptions unchanged
 const modelLabels: Record<ModelType, string> = {
   full: "Full Model (All Data)",
   "130_136": "130–136 Band Model",
@@ -67,14 +83,19 @@ const Index = () => {
   const [baseline, setBaseline] = useState<Record<string, number>>({});
   const [parameters, setParameters] = useState<Record<string, number>>({});
   const [nox, setNox] = useState<number | null>(null);
+
+  // DELTA NOW TRACKS CHANGE FROM PREVIOUS PREDICTION
   const [delta, setDelta] = useState<number | null>(null);
+
   const [baselineNox, setBaselineNox] = useState<number | null>(null);
   const [previousNox, setPreviousNox] = useState<number | null>(null);
   const [previousPayload, setPreviousPayload] = useState<Record<string, number> | null>(null);
+
   const [recommendations, setRecommendations] = useState<{ messages: string[]; risk: RiskLevel }>({
     messages: ["Click Calculate to see recommendations"],
     risk: "Normal"
   });
+
   const [diffs, setDiffs] = useState<DiffItem[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>("full");
@@ -122,22 +143,14 @@ const Index = () => {
         TEY: parameters.TEY
       };
 
-      // ----------------------------------------------------------
-      // ❗Corrected endpoint call
-      // ----------------------------------------------------------
       const endpoint = `${API_BASE_URL}${modelEndpoints[selectedModel]}`;
-
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
 
       const data = await response.json();
       const noxPred = data.NOX_pred;
@@ -145,13 +158,11 @@ const Index = () => {
       let currentBaselineNox = baselineNox;
       if (currentBaselineNox === null) {
         const baselinePayload = { ...baseline };
-
         const baselineResponse = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(baselinePayload)
         });
-
         if (baselineResponse.ok) {
           const baselineData = await baselineResponse.json();
           currentBaselineNox = baselineData.NOX_pred;
@@ -184,10 +195,16 @@ const Index = () => {
       });
 
       setNox(noxPred);
-      setDelta(currentBaselineNox ? noxPred - currentBaselineNox : null);
+
+      // ----------------------------------------------------
+      // ⭐ NEW: DELTA IS NOW FROM PREVIOUS PREDICTION
+      // ----------------------------------------------------
+      setDelta(previousNox !== null ? noxPred - previousNox : 0);
+
       setRecommendations({ messages: result.recs, risk: result.risk });
       setDiffs(result.diffs);
 
+      // Store comparison state
       setPreviousNox(noxPred);
       setPreviousPayload({ ...payload });
 
@@ -205,6 +222,7 @@ const Index = () => {
         title: "Calculation complete",
         description: `NOx emissions: ${noxPred.toFixed(1)} ppm (${modelLabels[selectedModel]})`
       });
+
     } catch (error) {
       console.error("Calculation error:", error);
       toast({
@@ -510,6 +528,8 @@ const Index = () => {
                   max={stats.AFDP.max}
                   datasetMin={stats.AFDP.min}
                   datasetMax={stats.AFDP.max}
+                  recommendedMin={recommendedRanges[selectedModel].AFDP?.[0]}
+                  recommendedMax={recommendedRanges[selectedModel].AFDP?.[1]}
                 />
 
                 <InputField
@@ -522,6 +542,8 @@ const Index = () => {
                   max={stats.CDP.max}
                   datasetMin={stats.CDP.min}
                   datasetMax={stats.CDP.max}
+                  recommendedMin={recommendedRanges[selectedModel].CDP?.[0]}
+                  recommendedMax={recommendedRanges[selectedModel].CDP?.[1]}
                 />
 
                 <InputField
@@ -534,6 +556,8 @@ const Index = () => {
                   max={stats.GTEP.max}
                   datasetMin={stats.GTEP.min}
                   datasetMax={stats.GTEP.max}
+                  recommendedMin={recommendedRanges[selectedModel].GTEP?.[0]}
+                  recommendedMax={recommendedRanges[selectedModel].GTEP?.[1]}
                 />
               </CardContent>
             </Card>
@@ -553,6 +577,8 @@ const Index = () => {
                   max={stats.TIT.max}
                   datasetMin={stats.TIT.min}
                   datasetMax={stats.TIT.max}
+                  recommendedMin={recommendedRanges[selectedModel].TIT?.[0]}
+                  recommendedMax={recommendedRanges[selectedModel].TIT?.[1]}
                 />
 
                 <InputField
@@ -565,6 +591,8 @@ const Index = () => {
                   max={stats.TAT.max}
                   datasetMin={stats.TAT.min}
                   datasetMax={stats.TAT.max}
+                  recommendedMin={recommendedRanges[selectedModel].TAT?.[0]}
+                  recommendedMax={recommendedRanges[selectedModel].TAT?.[1]}
                 />
               </CardContent>
             </Card>
