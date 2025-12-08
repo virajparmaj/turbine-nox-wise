@@ -52,62 +52,64 @@ interface EvaluationState {
 // ----------------------------------------------------------------------
 
 const REC_LIBRARY = {
-  // Fine-tuning / condition levers
+  // Fine-tuning / condition checks
   AFDP_HIGH_PERF:
-    "Filter loading is above the recommended band. Plan cleaning to protect performance and margins; NOx impact is usually small.",
+    "Filters are more loaded than usual. Plan cleaning; small NOx impact.",
   AFDP_TOO_CLEAN_COLD:
-    "Very clean filters on a cold day (low AFDP + low AT). Air is dense and flows too easily, so NOx naturally runs higher.",
+    "Filters are very clean on a cold day. Dense air flows too easily, so NOx runs higher.",
   TIT_HIGH:
-    "Firing temperature is above the typical band. For this unit TIT is normally limit-controlled, so only large deviations need attention.",
+    "Firing temperature is higher than normal. Only large shifts need attention.",
   TAT_RISING:
-    "Exhaust temperature is above its normal band. Check burner balance and fuel sharing.",
+    "Exhaust temperature is rising. Check burner balance or fuel split.",
   CDP_OFF:
-    "Compressor discharge pressure looks unusual for this load. Check for fouling, leaks, or guide vane issues.",
+    "Pressure after the compressor looks unusual. Check for fouling or leaks.",
   AH_HIGH:
-    "Air is very humid. If water/steam injection is used, confirm that injection and NOx controls are coordinated.",
+    "Air is very humid. If water or steam is used, make sure settings match conditions.",
 
-  // Ambient / weather context
+  // Weather context
   COLD_DAY:
-    "Cold ambient day. Even at normal settings NOx tends to run higher because dense air increases flame temperature.",
+    "Cold day. Dense air makes NOx naturally higher even with normal settings.",
   WARM_DAY:
-    "Warm ambient day. NOx tends to run lower and tuning is more forgiving.",
+    "Warm day. NOx usually runs lower, and tuning is more forgiving.",
   TIT_LIMITED_COLD:
-    "On this cold day TIT is already near its limit. Small setting changes will not significantly reduce NOx.",
+    "On cold days TIT is already near its limit. Small changes won’t reduce NOx much.",
 
-  // Non-tuning / safety
+  // Safety / non-tuning messages
   OUT_OF_RANGE:
-    "One or more inputs are outside the model’s recommended range. Treat this prediction with caution.",
+    "One or more inputs are outside normal ranges. Be cautious with this prediction.",
   BAND_MISMATCH:
-    "Current TEY does not match this model’s band. Switch to the model that matches the present load band.",
+    "Load does not match this model. Switch to the correct band.",
   LARGE_JUMP:
-    "NOx changed a lot while settings barely moved. Check sensors and review any recent manual changes.",
+    "NOx changed a lot while settings stayed the same. Check sensors or recent moves.",
   WEATHER_ONLY:
-    "The change in NOx is mainly explained by weather (ambient temperature/pressure/humidity), not by turbine settings.",
+    "Change in NOx is mainly from weather, not from settings.",
   MULTIPLE_DRIVERS:
-    "Several factors are active together. Change one thing at a time and let the machine settle before re-tuning.",
+    "Several factors active together. Change one thing at a time.",
   PRIORITY_ORDER:
-    "Suggested order: watch cold days → avoid ultra-clean filters on cold days → keep within recommended bands → only then adjust other settings.",
+    "Suggested order: watch cold days → avoid ultra-clean filters on cold days → stay in recommended ranges → then adjust other settings.",
 };
 
 const ADV_LIBRARY = {
-  NOX_UP: "NOx is higher than your reference run under these conditions.",
-  NOX_DOWN: "NOx is lower than your reference run under these conditions.",
+  NOX_UP:
+    "NOx is higher than your usual reference under similar conditions.",
+  NOX_DOWN:
+    "NOx is lower than your usual reference under similar conditions.",
   RISK_HIGH:
-    "High chance of running close to or above your NOx limit. Any tuning should be slow and carefully monitored.",
+    "High chance of nearing or crossing your NOx limit. Tune slowly.",
   RISK_WATCH:
-    "Noticeable NOx change. Make small moves and watch the trend after each step.",
+    "Noticeable NOx change. Make small moves and watch the trend.",
   LOW_CONF:
-    "Some inputs are outside the model’s normal operating window, so this prediction is less reliable.",
+    "Some inputs are outside the normal range, so this prediction is less certain.",
   WEATHER:
-    "NOx here is mainly driven by ambient temperature (cold vs warm conditions), not by turbine settings.",
+    "NOx here is mainly driven by weather, not by your settings.",
   FILTER_DRIVER:
-    "On cold days, very clean filters (low AFDP) increase airflow and can push NOx up. Slightly higher AFDP is acceptable.",
+    "On cold days, very clean filters increase airflow and can raise NOx.",
   TEMP_DRIVER:
-    "For this unit, combustor temperatures are usually at their control limit and are a secondary NOx lever. Only large deviations matter.",
+    "Temperatures are usually at their limit, so only large shifts affect NOx.",
   LOAD_DRIVER:
-    "Load level has only a minor effect on NOx for this turbine. Adjust it mainly for power demand, not emissions.",
+    "Load has only a small effect on NOx. Adjust mainly for power needs.",
   AIRFLOW_DRIVER:
-    "Overall airflow (CDP/AFDP) is influencing NOx, but the dominant effect comes from cold, dense air.",
+    "Airflow is influencing NOx, but cold, dense air is the main factor.",
 };
 
 // Utility
