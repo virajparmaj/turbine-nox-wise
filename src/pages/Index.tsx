@@ -114,7 +114,6 @@ const Index = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showColdStartHint, setShowColdStartHint] = useState(false);
   const timerRef = useRef<number | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>("full");
   const [history, setHistory] = useState<
     Array<{
@@ -162,15 +161,28 @@ const Index = () => {
     };
   }, [isCalculating]);
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    if (isCalculating) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = previousOverflow;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isCalculating]);
+
   const loadingMessage = isCalculating
     ? loadingMessages[Math.floor(elapsedSeconds / 3) % loadingMessages.length]
     : "";
 
   const handleCalculate = async () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setElapsedSeconds(0);
     setShowColdStartHint(false);
     setIsCalculating(true);
-    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     setNox(null);
     setDelta(null);
@@ -677,38 +689,17 @@ const Index = () => {
           </div>
 
           {/* Results */}
-          <div className="relative">
-            <div ref={resultsRef} className="h-0" />
-            <div className="space-y-6">
-              <PredictedNoxCard
-                nox={nox}
-                delta={delta}
-                activeModel={modelLabels[selectedModel]}
-              />
-              <RecommendationsCard
-                messages={recommendations.messages}
-                risk={recommendations.risk}
-              />
-              <WhatChangedCard diffs={diffs} />
-            </div>
-            {isCalculating && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm">
-                <div className="w-full max-w-md px-6 py-8 text-center">
-                  <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-green-200/60 bg-green-50/70 px-4 py-2 text-green-700 shadow-sm">
-                    <Loader2 className="h-4 w-4 animate-spin text-green-600" />
-                    <span className="font-semibold">Calculating... ({elapsedSeconds}s)</span>
-                  </div>
-                  <p className="mt-4 text-sm font-medium text-green-600 drop-shadow-[0_0_8px_rgba(34,197,94,0.35)] animate-pulse">
-                    {loadingMessage}
-                  </p>
-                  {showColdStartHint && (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Render free tier may take ~10–30s to wake up. Please wait.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+          <div className="space-y-6">
+            <PredictedNoxCard
+              nox={nox}
+              delta={delta}
+              activeModel={modelLabels[selectedModel]}
+            />
+            <RecommendationsCard
+              messages={recommendations.messages}
+              risk={recommendations.risk}
+            />
+            <WhatChangedCard diffs={diffs} />
           </div>
         </div>
 
@@ -788,6 +779,27 @@ const Index = () => {
           </div>
         )}
       </main>
+      {isCalculating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card/95 p-6 text-center shadow-2xl">
+            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-green-200/60 bg-green-50/70 px-4 py-2 text-green-700 shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-green-600" />
+              <span className="font-semibold">Calculating... ({elapsedSeconds}s)</span>
+            </div>
+            <p className="mt-4 text-sm font-medium text-green-600 drop-shadow-[0_0_8px_rgba(34,197,94,0.35)] animate-pulse">
+              {loadingMessage}
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Render free tier may take ~10–30s to wake up. Please wait.
+            </p>
+            {showColdStartHint && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Still warming up. This is normal on a cold start.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
