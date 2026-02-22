@@ -26,14 +26,14 @@ const recommendedRanges = {
 // ONLY NECESSARY CHANGES DONE — NOTHING ELSE MODIFIED
 // ----------------------------------------------------------
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/InputField";
 import { PredictedNoxCard } from "@/components/PredictedNoxCard";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
 import { WhatChangedCard } from "@/components/WhatChangedCard";
-import { RotateCcw, Gauge, Calculator } from "lucide-react";
+import { RotateCcw, Gauge, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, StatsMap } from "@/utils/csvParser";
 import { renderRecommendations, type DiffItem, type RiskLevel } from "@/utils/recommendations";
@@ -77,6 +77,19 @@ const modelDescriptions: Record<ModelType, string> = {
   "160p": "High load regime"
 };
 
+const loadingMessages = [
+  "Optimizing combustion knobs...",
+  "Checking TIT/TAT bands...",
+  "Scanning for NOx spikes...",
+  "Band-wise models warming up...",
+  "Applying recommended ranges...",
+  "Generating advisory...",
+  "Comparing deltas to last run...",
+  "Waking up the Render dyno... it hit snooze again.",
+  "Render free tier is stretching. Please do not poke it.",
+  "Aligning airflow math with reality..."
+];
+
 const Index = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<StatsMap | null>(null);
@@ -98,6 +111,10 @@ const Index = () => {
 
   const [diffs, setDiffs] = useState<DiffItem[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showColdStartHint, setShowColdStartHint] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelType>("full");
   const [history, setHistory] = useState<
     Array<{
@@ -122,8 +139,38 @@ const Index = () => {
     });
   }, []);
 
+  useEffect(() => {
+    if (!isCalculating) return;
+
+    if (timerRef.current !== null) {
+      window.clearInterval(timerRef.current);
+    }
+
+    timerRef.current = window.setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        if (next >= 3) setShowColdStartHint(true);
+        return next;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [isCalculating]);
+
+  const loadingMessage = isCalculating
+    ? loadingMessages[Math.floor(elapsedSeconds / 3) % loadingMessages.length]
+    : "";
+
   const handleCalculate = async () => {
+    setElapsedSeconds(0);
+    setShowColdStartHint(false);
     setIsCalculating(true);
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     setNox(null);
     setDelta(null);
@@ -232,6 +279,8 @@ const Index = () => {
       });
     } finally {
       setIsCalculating(false);
+      setElapsedSeconds(0);
+      setShowColdStartHint(false);
     }
   };
 
@@ -628,17 +677,38 @@ const Index = () => {
           </div>
 
           {/* Results */}
-          <div className="space-y-6">
-            <PredictedNoxCard
-              nox={nox}
-              delta={delta}
-              activeModel={modelLabels[selectedModel]}
-            />
-            <RecommendationsCard
-              messages={recommendations.messages}
-              risk={recommendations.risk}
-            />
-            <WhatChangedCard diffs={diffs} />
+          <div className="relative">
+            <div ref={resultsRef} className="h-0" />
+            <div className="space-y-6">
+              <PredictedNoxCard
+                nox={nox}
+                delta={delta}
+                activeModel={modelLabels[selectedModel]}
+              />
+              <RecommendationsCard
+                messages={recommendations.messages}
+                risk={recommendations.risk}
+              />
+              <WhatChangedCard diffs={diffs} />
+            </div>
+            {isCalculating && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm">
+                <div className="w-full max-w-md px-6 py-8 text-center">
+                  <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-green-200/60 bg-green-50/70 px-4 py-2 text-green-700 shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin text-green-600" />
+                    <span className="font-semibold">Calculating... ({elapsedSeconds}s)</span>
+                  </div>
+                  <p className="mt-4 text-sm font-medium text-green-600 drop-shadow-[0_0_8px_rgba(34,197,94,0.35)] animate-pulse">
+                    {loadingMessage}
+                  </p>
+                  {showColdStartHint && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Render free tier may take ~10–30s to wake up. Please wait.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
