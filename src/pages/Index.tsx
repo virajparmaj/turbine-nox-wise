@@ -78,16 +78,18 @@ const modelDescriptions: Record<ModelType, string> = {
 };
 
 const loadingMessages = [
-  "Optimizing combustion knobs...",
-  "Checking TIT/TAT bands...",
-  "Scanning for NOx spikes...",
-  "Band-wise models warming up...",
-  "Applying recommended ranges...",
-  "Generating advisory...",
-  "Comparing deltas to last run...",
-  "Waking up the Render dyno... it hit snooze again.",
-  "Render free tier is stretching. Please do not poke it.",
-  "Aligning airflow math with reality..."
+  "Waking the NOx model from its turbine nap...",
+  "Checking TIT/TAT bands like a bouncer at a late-night club...",
+  "Scanning for NOx spikes. No spikes, no drama.",
+  "Band-wise models warming up. This is not a microwave.",
+  "Applying recommended ranges. Safety rails engaged.",
+  "Generating advisory. The exhaust has opinions.",
+  "Comparing deltas to last run. Deja view for turbines.",
+  "Render free tier just hit snooze. We asked nicely again.",
+  "Render dyno is stretching. It runs on vibes and patience.",
+  "Airflow math vs reality. Place your bets.",
+  "If this takes a bit, it is the free tier doing yoga.",
+  "NOx whispers: " + '"' + "please do not touch the shiny knobs" + '"'
 ];
 
 const Index = () => {
