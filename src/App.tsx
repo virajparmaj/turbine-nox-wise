@@ -19,6 +19,9 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <footer className="w-full text-center text-xs opacity-60 py-6 mt-10">
+          Ideated by Viraj Parmaj
+        </footer>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
