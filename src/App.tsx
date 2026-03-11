@@ -20,7 +20,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <footer className="w-full text-center text-xs opacity-60 py-6 mt-10">
-          Ideated by Viraj Parmaj
+          Ideated by Viraj
         </footer>
       </BrowserRouter>
     </TooltipProvider>
