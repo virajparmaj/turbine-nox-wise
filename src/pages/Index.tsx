@@ -33,7 +33,7 @@ import { InputField } from "@/components/InputField";
 import { PredictedNoxCard } from "@/components/PredictedNoxCard";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
 import { WhatChangedCard } from "@/components/WhatChangedCard";
-import { RotateCcw, Gauge, Calculator, Loader2 } from "lucide-react";
+import { RotateCcw, Calculator, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, StatsMap } from "@/utils/csvParser";
 import { renderRecommendations, type DiffItem, type RiskLevel } from "@/utils/recommendations";
@@ -382,7 +382,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Gauge className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+          <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-12 w-12 object-contain mx-auto mb-4 animate-pulse" />
           <p className="text-muted-foreground">Loading turbine data...</p>
         </div>
       </div>
@@ -400,7 +400,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Gauge className="h-8 w-8 text-primary" />
+              <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-10 w-10 object-contain" />
               <div>
                 <h1 className="text-3xl font-bold text-primary">Turbine NOx Advisor</h1>
                 <p className="text-sm text-muted-foreground">
