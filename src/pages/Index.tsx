@@ -382,7 +382,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-12 w-12 object-contain mx-auto mb-4 animate-pulse" />
+          <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-24 w-auto mx-auto mb-4 animate-pulse" />
           <p className="text-muted-foreground">Loading turbine data...</p>
         </div>
       </div>
@@ -400,7 +400,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-10 w-10 object-contain" />
+              <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-16 w-auto" />
               <div>
                 <h1 className="text-3xl font-bold text-primary">Turbine NOx Advisor</h1>
                 <p className="text-sm text-muted-foreground">
