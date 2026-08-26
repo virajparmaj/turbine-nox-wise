@@ -9,6 +9,16 @@ export default defineConfig({
     port: 8080,
   },
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("/node_modules/recharts/")) return "recharts";
+          if (id.includes("/node_modules/d3-")) return "d3";
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,0 +1,12 @@
+variable,unit,category,year_1,year_2,pct_change
+TEY,MW,setpoint,132.17,132.91,0.6
+TIT,degC,setpoint,1081.57,1078.84,-0.3
+TAT,degC,setpoint,545.78,547.64,0.3
+CDP,bar,setpoint,11.97,12.02,0.4
+AP,mbar,ambient,1012.0,1012.38,0.0
+GTEP,bar,process,25.11,25.74,2.5
+AFDP,bar,process,3.7,3.91,5.9
+AT,degC,ambient,17.6,18.22,3.5
+AH,% RH,ambient,80.46,82.14,2.1
+NOX,ppm,outcome,70.01,60.07,-14.2
+CO,ppm,outcome,2.72,2.08,-23.6
