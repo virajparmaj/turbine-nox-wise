@@ -70,6 +70,12 @@ All 9 features passed to every model (model uses its own feature subset from `mo
 - In-memory session history (not persisted)
 - Exportable as CSV
 
+### Data Analysis Page
+- Route: `/analysis`, linked from the homepage header via “What the Data Tells Us”
+- Presents six validated findings from the two-year turbine record, including interactive Recharts views and visible caveats/limitations
+- Runtime chart data is bundled from `src/data/analysis/`; the static humidity figure lives in `public/analysis/`
+- The external analysis repository is a build-time handoff only — the deployed site has no runtime dependency on it
+
 ---
 
 ## CORS
@@ -83,8 +89,11 @@ Backend whitelists:
 
 ## Recent Milestones
 - Lovable traces removed
-- Logo + favicon updated; name refactored to "Turbine NOx Advisor"
-- Loading screen with animated overlay and rotating messages
-- Footer credit added ("Ideated by Viraj")
+- Custom logo (`/turbine-nox.png`) added — replaces Gauge icon in header and CSV-loading spinner (now `animate-pulse` image)
+- Favicon set: `favicon.png`, `favicon-32.png`, `apple-touch-icon.png` — all using turbine logo
+- `index.html` `<title>` and meta updated to "Turbine NOx Advisor"
+- Name refactored across codebase to "Turbine NOx Advisor"
+- Footer credit added globally in `App.tsx` ("Ideated by Viraj")
+- Loading screen with animated overlay and rotating witty messages (3s interval, cold-start hint after 3s)
 - Band-wise models + per-band recommended ranges on inputs
 - Recommendations engine with risk levels + WhatChanged diff card
