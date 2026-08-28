@@ -35,7 +35,7 @@ export const FindingSection = ({
       <h2 id={`finding-${number}-title`} className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
         {title}
       </h2>
-      <div className="text-base leading-7 text-muted-foreground">{finding}</div>
+      <div className="max-w-3xl text-base leading-7 text-muted-foreground">{finding}</div>
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -51,11 +51,11 @@ export const FindingSection = ({
 
     <div className="grid gap-5 border-l-2 border-primary/25 pl-5 md:grid-cols-2">
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">Why it matters</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">In plain English</h3>
         <div className="mt-2 text-sm leading-6 text-muted-foreground">{whyItMatters}</div>
       </div>
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">Operational implication</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">What to do</h3>
         <div className="mt-2 text-sm leading-6 text-muted-foreground">{implication}</div>
       </div>
     </div>
@@ -66,9 +66,9 @@ export const FindingSection = ({
       </div>
     ) : null}
 
-    <p className="rounded-md bg-muted/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
-      <span className="font-semibold text-foreground">Caveat: </span>
-      {caveat}
-    </p>
+    <details className="rounded-md bg-muted/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
+      <summary className="cursor-pointer font-semibold text-foreground">Read the caveat</summary>
+      <div className="pt-2">{caveat}</div>
+    </details>
   </section>
 );
