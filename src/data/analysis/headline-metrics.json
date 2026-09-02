@@ -1,0 +1,30 @@
+[
+  {
+    "id": "concentration",
+    "value": "49%",
+    "label": "of the worst NOx hours come from 5% of operating time",
+    "detail": "9.4\u00d7 risk lift below 1050 \u00b0C turbine inlet temperature",
+    "supports_insight": 1
+  },
+  {
+    "id": "episodes",
+    "value": "273",
+    "label": "sub-1050 \u00b0C excursion episodes in two years",
+    "detail": "~136 per year, median 2 hours long",
+    "supports_insight": 1
+  },
+  {
+    "id": "drift",
+    "value": "\u221214%",
+    "label": "year-over-year drop in NOx at near-identical operating conditions",
+    "detail": "-5.45 ppm survives matching; 95% CI [-7.93, -4.25]",
+    "supports_insight": 4
+  },
+  {
+    "id": "validation",
+    "value": "0.86 \u2192 0.03",
+    "label": "model R\u00b2 once validated on time, not at random",
+    "detail": "recovers to 0.495 with monthly recalibration",
+    "supports_insight": 5
+  }
+]

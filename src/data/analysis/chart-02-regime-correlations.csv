@@ -1,0 +1,5 @@
+regime,regime_label,tit_range,n_hours,share_of_hours_pct,spearman_co_vs_nox,median_co_ppm,median_nox_ppm
+part_load,Part-load / transient,TIT < 1050 °C,747,5.2,0.792,7.12,79.0
+transition,Transition,TIT 1050–1075 °C,3521,24.6,0.129,3.5,62.1
+normal,Normal,TIT 1075–1095 °C,6597,46.1,0.302,1.59,64.0
+high_fire,High fire,TIT ≥ 1095 °C,3445,24.1,0.167,1.22,65.7

@@ -33,7 +33,8 @@ import { InputField } from "@/components/InputField";
 import { PredictedNoxCard } from "@/components/PredictedNoxCard";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
 import { WhatChangedCard } from "@/components/WhatChangedCard";
-import { RotateCcw, Calculator, Loader2 } from "lucide-react";
+import { NavLink } from "@/components/NavLink";
+import { RotateCcw, Calculator, ChartNoAxesCombined, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { parseCSV, StatsMap } from "@/utils/csvParser";
 import { renderRecommendations, type DiffItem, type RiskLevel } from "@/utils/recommendations";
@@ -398,7 +399,7 @@ const Index = () => {
       {/* Header */}
       <header className="border-b bg-card shadow-sm">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <img src="/turbine-nox.png" alt="Turbine NOx logo" className="h-16 w-auto" />
               <div>
@@ -408,10 +409,18 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset All
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <NavLink to="/analysis">
+                  <ChartNoAxesCombined />
+                  What the Data Tells Us
+                </NavLink>
+              </Button>
+              <Button variant="outline" onClick={handleReset}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset All
+              </Button>
+            </div>
           </div>
         </div>
       </header>

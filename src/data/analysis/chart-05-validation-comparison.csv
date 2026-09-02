@@ -1,0 +1,5 @@
+scheme,detail,r2,honest,order
+Random 80/20 split,what the original notebook used,0.862,False,1
+Blocked CV (contiguous folds),5 contiguous time blocks,0.029,True,2
+Train Year 1 / test Year 2,how it would actually be deployed,-0.156,True,3
+Year 2 + monthly re-zeroing,trailing 30-day offset correction,0.495,True,4
